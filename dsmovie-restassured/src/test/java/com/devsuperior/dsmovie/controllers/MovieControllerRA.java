@@ -7,14 +7,26 @@ import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.json.JSONException;
+import org.json.simple.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import com.devsuperior.dsmovie.tests.TokenUtil;
+
+import io.restassured.http.ContentType;
 
 public class MovieControllerRA {
 	
 	private Integer existsId, nonExistsId;
 	
+	private String clientToken, adminToken, invalidToken;
+	private String clientUsername, clientPassword, adminUsername, adminPassword;
+	
+	private Map<String, Object> movieInstance;
 	
 	@BeforeEach
 	public void setUp() throws Exception{
@@ -22,6 +34,23 @@ public class MovieControllerRA {
 		
 		existsId = 1;
 		nonExistsId = 100;
+		
+		adminUsername = "maria@gmail.com";
+		adminPassword = "123456";
+		clientUsername = "alex@gmail.com";
+		clientPassword = "123456";
+
+		adminToken = TokenUtil.obtainAccessToken(adminUsername, adminPassword);
+		clientToken = TokenUtil.obtainAccessToken(clientUsername, clientPassword);
+		invalidToken = adminToken + "xpto";
+		
+		movieInstance = new HashMap<>();
+		movieInstance.put("title", "Test Movie");
+		movieInstance.put("score", 0.0);
+		movieInstance.put("count", 0);
+		movieInstance.put("image", "https://www.themoviedb.org/t/p/w533_and_h300_bestv2/jBJWaqoSCiARWtfV0GlqHrcdidd.jpg");
+		
+		
 		
 	}
 	
@@ -79,14 +108,55 @@ public class MovieControllerRA {
 	}
 	
 	@Test
-	public void insertShouldReturnUnprocessableEntityWhenAdminLoggedAndBlankTitle() throws JSONException {		
+	public void insertShouldReturnUnprocessableEntityWhenAdminLoggedAndBlankTitle() throws JSONException {
+		movieInstance.put("title", "");
+		JSONObject newMovie = new JSONObject(movieInstance);
+		
+		given()
+			.header("Content-Type", "application/json")
+			.header("Authorization", "Bearer " + adminToken)
+			.body(newMovie)
+			.contentType(ContentType.JSON)
+			.accept(ContentType.JSON)
+		.when()
+			.post("/movies")
+		.then()
+			.statusCode(422)
+			.body("error", equalTo("Dados inválidos"))
+			.body("path", equalTo("/movies"))	
+			.body("errors.fieldName", hasItem("title"))
+			.body("errors.message", hasItem("Campo requerido"));
 	}
 	
 	@Test
 	public void insertShouldReturnForbiddenWhenClientLogged() throws Exception {
+		JSONObject newMovie = new JSONObject(movieInstance);
+		
+		given()
+			.header("Content-Type", "application/json")
+			.header("Authorization", "Bearer " + clientToken)
+			.body(newMovie)
+			.contentType(ContentType.JSON)
+			.accept(ContentType.JSON)
+		.when()
+			.post("/movies")
+		.then()
+			.statusCode(403);	
 	}
 	
 	@Test
 	public void insertShouldReturnUnauthorizedWhenInvalidToken() throws Exception {
+		JSONObject newMovie = new JSONObject(movieInstance);
+		
+		given()
+			.header("Content-Type", "application/json")
+			.header("Authorization", "Bearer " + invalidToken)
+			.body(newMovie)
+			.contentType(ContentType.JSON)
+			.accept(ContentType.JSON)
+		.when()
+			.post("/movies")
+		.then()
+			.statusCode(401);
 	}
 }
