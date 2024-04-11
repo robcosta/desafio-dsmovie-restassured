@@ -68,7 +68,14 @@ public class MovieControllerRA {
 	}
 	
 	@Test
-	public void findByIdShouldReturnNotFoundWhenIdDoesNotExist() {	
+	public void findByIdShouldReturnNotFoundWhenIdDoesNotExist() {
+		given()
+		.when()
+			.get("/movies/{id}", nonExistsId)
+		.then()
+			.statusCode(404)
+			.body("error", equalTo("Recurso não encontrado"))
+			.body("path", equalTo("/movies/" + nonExistsId));
 	}
 	
 	@Test
